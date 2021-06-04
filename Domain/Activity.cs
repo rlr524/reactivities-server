@@ -4,6 +4,7 @@ namespace Domain
 {
     public class Activity
     {
+        // EntityFramework will recognize this as the pk due to being named Id
         public Guid Id { get; set; }
 
         public String Title { get; set; }
