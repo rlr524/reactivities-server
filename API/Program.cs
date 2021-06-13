@@ -3,19 +3,46 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Persistence;
 
 namespace API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
-        }
+            var host = CreateHostBuilder(args).Build();
+            
+            // Use the using keyword to ensure that the variable (scope) is disposed of once the method has finished
+            // This variable hosts any services created inside this Main method
+            using var scope = host.Services.CreateScope();
 
+            var services = scope.ServiceProvider;
+
+            try
+            {
+                // Using the service locator pattern to get our Startup class where we defined our
+                // DataContext service. 
+                var context = services.GetRequiredService<DataContext>();
+                // Create the DB if it does not already exist; if it already exists, update it based
+                // on the most recent migration
+                await context.Database.MigrateAsync();
+                // Seed the DB with data from the Seed class if it doesn't have any data
+                await Seed.SeedData(context);
+            }
+            catch (Exception e)
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                logger.LogError(e, "An error occured during migration");
+            }
+            
+            await host.RunAsync();
+        }
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
